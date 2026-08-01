@@ -537,6 +537,10 @@ const CONFIG = {
   ]
 };
 
+// Never let the browser restore a previous scroll position — the page
+// must always open on the ask screen, never halfway down the film.
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
 /* ============ personalize ============ */
 document.getElementById('ask-title').textContent = `Hey ${CONFIG.herName}!`;
 document.getElementById('ask-question').textContent = CONFIG.question;
@@ -590,6 +594,12 @@ function enterCinema() {
   document.getElementById('main').classList.add('visible');
   document.body.style.overflowY = 'auto';
   window.scrollTo(0, 0);
+  // From here on, scenes coming into view count as genuinely watched.
+  // Any `.in` picked up earlier (ask screen still up, or the browser
+  // restoring scroll on reload) is discarded.
+  window.__scenesSeen = new Set();
+  if (window.__track) window.__track.scenes_seen = 0;
+  window.__filmOpen = true;
   startRain();
   scheduleLightning();
 }
@@ -634,9 +644,10 @@ document.body.style.overflowY = 'hidden'; // lock scroll until Yes
 /* ============ scenes render + scroll reveal ============ */
 (function () {
   const wrap = document.getElementById('milestones');
-  CONFIG.milestones.forEach(m => {
+  CONFIG.milestones.forEach((m, sceneIdx) => {
     const div = document.createElement('div');
     div.className = 'scene';
+    div.dataset.sceneIndex = sceneIdx;
     const isVideo = src => /\.(mp4|webm|mov)$/i.test(src);
     const imgTag = src => `<img src="${src}" alt="${m.title}" loading="lazy"
       onerror="this.parentElement.classList.add('placeholder');this.replaceWith(document.createTextNode('${m.emoji || '📸'}'))">`;
@@ -695,7 +706,18 @@ document.body.style.overflowY = 'hidden'; // lock scroll until Yes
   ).join('') + `<div class="row"><div class="fin">to be continued… 💖</div></div>`;
 
   const io = new IntersectionObserver(entries => {
-    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); });
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      e.target.classList.add('in');
+      // Count a scene as "seen" only once the film is actually open.
+      // Before that the ask screen covers the page, and on a reload the
+      // browser can fly through scenes while restoring scroll — neither
+      // should count as the visitor having watched anything.
+      if (window.__filmOpen && window.__track && e.target.classList.contains('scene')) {
+        (window.__scenesSeen || (window.__scenesSeen = new Set())).add(e.target.dataset.sceneIndex);
+        window.__track.scenes_seen = window.__scenesSeen.size;
+      }
+    });
   }, { threshold: 0.12 });
   document.querySelectorAll('.scene, #credits .row').forEach(el => io.observe(el));
 })();
@@ -1045,7 +1067,7 @@ function logFlames(name1, name2, result, letterCount) {
     if (!rowId) return;
     const body = JSON.stringify({
       ...stats,
-      scenes_seen: document.querySelectorAll('.scene.in').length,
+      scenes_seen: window.__scenesSeen ? window.__scenesSeen.size : 0,
       duration_sec: Math.round((Date.now() - startedAt) / 1000)
     });
     const url = `${endpoint}?id=eq.${rowId}`;
