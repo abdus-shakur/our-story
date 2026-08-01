@@ -842,6 +842,59 @@ if (new URLSearchParams(location.search).has('preview')) {
   enterCinema();
 }
 
+/* ============ audio ducking ============ */
+/* When she plays a scene video, fade the background music out and pause
+   it; when that video ends (or she pauses it), fade the music back in.
+   Also stops two videos from ever playing over each other.
+   Silently does nothing if there's no music file. */
+(function duckMusicUnderVideos() {
+  const music = document.getElementById('bg-music');
+  if (!music) return;
+  let musicWasPlaying = false;
+  let fadeTimer = null;
+
+  const videosPlaying = () =>
+    [...document.querySelectorAll('video')].some(v => !v.paused && !v.ended);
+
+  function fadeTo(target, done) {
+    clearInterval(fadeTimer);
+    const step = (target - music.volume) / 12;
+    fadeTimer = setInterval(() => {
+      const next = music.volume + step;
+      if ((step > 0 && next >= target) || (step < 0 && next <= target) || step === 0) {
+        music.volume = target;
+        clearInterval(fadeTimer);
+        if (done) done();
+      } else {
+        music.volume = Math.min(1, Math.max(0, next));
+      }
+    }, 30);
+  }
+
+  // 'play' / 'pause' / 'ended' don't bubble, so listen in the capture phase
+  document.addEventListener('play', e => {
+    if (e.target.tagName !== 'VIDEO') return;
+    // only one video at a time
+    document.querySelectorAll('video').forEach(v => { if (v !== e.target && !v.paused) v.pause(); });
+    if (!music.paused) {
+      musicWasPlaying = true;
+      fadeTo(0, () => music.pause());
+    }
+  }, true);
+
+  function maybeResume() {
+    // wait a tick — pausing one video to start another fires pause first
+    setTimeout(() => {
+      if (!musicWasPlaying || videosPlaying()) return;
+      musicWasPlaying = false;
+      music.volume = 0;
+      music.play().then(() => fadeTo(1)).catch(() => {});
+    }, 150);
+  }
+  document.addEventListener('ended', e => { if (e.target.tagName === 'VIDEO') maybeResume(); }, true);
+  document.addEventListener('pause', e => { if (e.target.tagName === 'VIDEO') maybeResume(); }, true);
+})();
+
 /* ============ FLAMES ============ */
 const FLAMES_MEANING = {
   F: { word: 'Friends',    note: 'The algorithm is wrong sometimes. This is one of those times. 😌' },
