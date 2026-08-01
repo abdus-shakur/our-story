@@ -914,6 +914,11 @@ const VISIT_SESSION = Math.random().toString(36).slice(2) + Date.now().toString(
 
 // called by the FLAMES box above — saves every play
 function logFlames(name1, name2, result, letterCount) {
+  // mirror it onto the visit row too, so one row tells the whole story
+  if (window.__track) {
+    window.__track.flames_plays = (window.__track.flames_plays || 0) + 1;
+    window.__track.flames_last = `${name1} & ${name2} → ${(FLAMES_MEANING[result] || {}).word || result}`;
+  }
   if (!ANALYTICS.SUPABASE_URL || !ANALYTICS.SUPABASE_ANON_KEY) return;
   if (new URLSearchParams(location.search).has('preview')) return;
   fetch(`${ANALYTICS.SUPABASE_URL}/rest/v1/${ANALYTICS.FLAMES_TABLE}`, {
@@ -979,7 +984,8 @@ function logFlames(name1, name2, result, letterCount) {
   };
 
   // engagement counters, updated as they use the page
-  const stats = { reached_film: false, max_scroll: 0, scenes_seen: 0, opened_letter: false, no_dodges: 0 };
+  const stats = { reached_film: false, max_scroll: 0, scenes_seen: 0, opened_letter: false, no_dodges: 0,
+                  flames_plays: 0, flames_last: null };
   window.__track = stats;   // the app code below bumps these
 
   let rowId = null;
