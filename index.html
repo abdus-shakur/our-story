@@ -1062,20 +1062,38 @@ function logFlames(name1, name2, result, letterCount) {
     if (h > 0) stats.max_scroll = Math.max(stats.max_scroll, Math.min(100, Math.round(scrollY / h * 100)));
   }, { passive: true });
 
-  // send final engagement stats when they leave
-  function flush() {
+  // ----- engagement stats -----
+  // These are PATCHed onto the visit row as she goes, not only when she
+  // leaves: a final-only write is lost whenever the browser kills a
+  // backgrounded tab or the network drops, which would leave a row
+  // claiming nobody watched anything. Sending progressively means the
+  // worst case is losing the last few seconds, not the whole visit.
+  let lastSent = '';
+
+  function flush(force) {
     if (!rowId) return;
-    const body = JSON.stringify({
+    const snapshot = {
       ...stats,
       scenes_seen: window.__scenesSeen ? window.__scenesSeen.size : 0,
       duration_sec: Math.round((Date.now() - startedAt) / 1000)
-    });
-    const url = `${endpoint}?id=eq.${rowId}`;
-    // keepalive so the request survives the page closing
-    fetch(url, { method: 'PATCH', headers, body, keepalive: true }).catch(() => {});
+    };
+    // skip the write if nothing meaningful moved (duration always ticks,
+    // so compare everything except it)
+    const { duration_sec, ...meaningful } = snapshot;
+    const fingerprint = JSON.stringify(meaningful);
+    if (!force && fingerprint === lastSent) return;
+    lastSent = fingerprint;
+
+    fetch(`${endpoint}?id=eq.${rowId}`, {
+      method: 'PATCH', headers,
+      body: JSON.stringify(snapshot),
+      keepalive: true            // survives the page closing
+    }).catch(() => {});
   }
-  addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
-  addEventListener('pagehide', flush);
+
+  setInterval(() => flush(false), 15000);       // progressive, only when changed
+  addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(true); });
+  addEventListener('pagehide', () => flush(true));
 })();
 </script>
 </body>
