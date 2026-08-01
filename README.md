@@ -1,47 +1,102 @@
-# 🎬 Girlfriend Day Surprise — "Us"
+# 🎬 S & H
 
-A single-page cinematic surprise app. Opens as a playful pink
-"Do you love me?" ask (with a No button that runs away on tap), then
-confetti → fade-to-black with a date slate → a dark, movie-style
-experience: letterbox bars, film grain, falling rain with lightning
-flashes (their story started in a storm ⛈️), a gold movie-title card
-with a live "since we met" counter, scroll-revealed scenes, a
-post-credits letter in an envelope, and a rolling credits ending.
-Pure HTML/CSS/JS — no build step, no dependencies.
+A single-page cinematic love story. Live at
+**https://abdus-shakur.github.io/our-story/**
 
-## Personalize
+Pure HTML/CSS/JS in one file — no build step, no dependencies, no
+framework. Everything is served straight from this repo.
 
-Everything personal lives in the `CONFIG` object at the top of the
+## The experience
+
+1. **Landing** — a blurred photo behind a teasing question, with a
+   "deny" button that runs away on tap and escalating taunts
+2. **The cut** — confetti, then a fade to blush
+3. **Title card** — *A true story presents · S & H* over falling rain,
+   with a live counter since the day they met
+4. **Ten scenes** — each with its own dreamy blurred backdrop, telling
+   the story from a rainy June evening through Pondicherry
+5. **Post-credits letter** — an envelope that unfolds
+6. **Rolling credits** — ending on *to be continued…*
+7. **FLAMES** — the playground algorithm, with the elimination animation
+
+Throughout: letterbox bars, film grain, a vignette, falling rain and
+occasional lightning.
+
+## Editing it
+
+Everything personal lives in the `CONFIG` object near the top of the
 `<script>` in `index.html`:
 
-- `herName`, `anniversary`, `question`, `signature`
-- `filmTitle`, `filmTagline`, `slateText` — the movie framing
-- `milestones` — your scenes (text + photo/video per entry)
-- `letter` — the paragraphs of your letter
-- `credits` — the rolling credits at the end
+| Key | What it controls |
+|---|---|
+| `herName` | the name on the landing screen |
+| `anniversary` | the date the live counter counts from |
+| `question`, `yesLabel`, `noLabel`, `noTaunts` | the landing screen |
+| `filmTitle`, `filmTagline` | the title card |
+| `milestones` | the scenes — text plus photo/video per entry |
+| `letter` | the letter, one string per paragraph |
+| `credits` | the rolling credits |
 
-Media files go in `assets/` — see `assets/README.md`.
+**Scene media** accepts a few shapes:
 
-## Preview locally
+```js
+media: "assets/x.jpg"                      // one photo, full width
+media: "assets/x.mp4"                      // one video
+media: ["assets/a.jpg", "assets/b.jpg"]    // photos pair up side by side
+media: [{src: "assets/a.jpg", full: true}] // force full width
+media: false                               // no media card at all
+bg:    "assets/x.jpg"                      // override the blurred backdrop
+```
+
+Missing files degrade gracefully to a styled emoji card, so nothing
+breaks if an asset is absent.
+
+Add `?preview` to the URL to skip straight into the film while editing
+(it also disables visit logging).
+
+## Visitor logging
+
+Visits and FLAMES plays are logged to Supabase. Credentials live in the
+`ANALYTICS` object at the bottom of `index.html` — leave `SUPABASE_URL`
+empty to switch logging off entirely.
+
+Two tables, linked by `flames_plays.visit_id → page_visits.id`:
+
+- **`page_visits`** — one row per load: IP, city, country, device, OS,
+  browser, screen, timezone, referrer, plus engagement (did they tap
+  through, scroll depth, time on page, did they open the letter)
+- **`flames_plays`** — one row per calculation: both names, the result,
+  and which visit produced it
+
+The public key can `INSERT` but never `SELECT`, so the log cannot be
+read back through the page.
+
+SQL lives in `sql/`:
+
+| File | Purpose |
+|---|---|
+| `01-setup.sql` | creates both tables, indexes, grants — run once |
+| `02-queries.sql` | read-only queries for browsing the data |
+| `03-maintenance.sql` | repair, clear, or drop data — one block at a time |
+
+## Running it locally
 
 ```bash
-cd girlfriend-day
 python3 -m http.server 8000
-# open http://localhost:8000 (or your Mac's IP from your phone on the same Wi-Fi)
+# then open http://localhost:8000
 ```
 
-## Deploy to GitHub Pages
+## Deploying
+
+Any push to `main` republishes automatically:
 
 ```bash
-cd girlfriend-day
-git init && git add -A && git commit -m "surprise 💝"
-gh repo create girlfriend-day --public --source=. --push
-gh api repos/{owner}/girlfriend-day/pages -X POST \
-  -f "source[branch]=main" -f "source[path]=/"
+git add -A && git commit -m "..." && git push
 ```
 
-Your link will be `https://<your-username>.github.io/girlfriend-day/`
-(takes a minute or two to go live the first time).
+## Note
 
-> Note: the repo is public, so anyone with the link can see it.
-> Keep that in mind for photos/text you add.
+The repo is public, which is what makes free GitHub Pages hosting work.
+Anyone with the link can see the photos, videos and letter. For genuine
+access control, host on Cloudflare Pages or Netlify instead — both offer
+real password protection on their free tiers.
