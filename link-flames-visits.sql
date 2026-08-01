@@ -5,8 +5,14 @@
 --  Run each block SEPARATELY in Supabase → SQL Editor
 -- ============================================================
 
+-- ---------- BLOCK 0: drop any earlier version of the view ----------
+-- `create or replace view` cannot rename or reorder existing columns,
+-- so if you ran an earlier version of this file, drop it first.
+drop view if exists public.visits_with_flames;
+
+
 -- ---------- BLOCK 1: a view that joins them ----------
-create or replace view public.visits_with_flames as
+create view public.visits_with_flames as
 select
   v.id          as visit_id,
   v.visited_at,
