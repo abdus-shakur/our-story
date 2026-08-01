@@ -123,16 +123,21 @@ body.cinema #rain { opacity: 0.45; }
   0%, 100% { transform: scale(1); } 25% { transform: scale(1.15); }
   40% { transform: scale(1); } 60% { transform: scale(1.12); }
 }
-#ask-screen h1 { font-family: 'Dancing Script', cursive; font-size: clamp(36px, 9vw, 56px); color: var(--pink-deep); margin: 18px 0 6px; }
-#ask-screen p.sub { font-size: 17px; font-weight: 600; color: #8a5262; margin-bottom: 40px; }
-#ask-question { font-size: clamp(22px, 6vw, 30px); font-weight: 700; color: #4a2b33; margin-bottom: 30px; }
+#ask-screen h1 { font-family: 'Dancing Script', cursive; font-size: clamp(36px, 9vw, 56px); color: var(--pink-deep); margin: 18px 0 6px; max-width: 100%; }
+#ask-screen p.sub { font-size: 17px; font-weight: 600; color: #8a5262; margin-bottom: 40px; max-width: 100%; }
+#ask-question {
+  font-size: clamp(20px, 5.4vw, 30px); font-weight: 700; color: #4a2b33;
+  margin-bottom: 30px; max-width: 100%; width: 100%;
+  line-height: 1.35; overflow-wrap: break-word; text-wrap: balance;
+}
 
 .btn-row { display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; max-width: 340px; min-height: 140px; }
 .btn { border: none; border-radius: 999px; font-family: 'Quicksand', sans-serif; font-weight: 700; cursor: pointer; transition: transform 0.15s ease, font-size 0.25s ease, padding 0.25s ease; }
 #btn-yes {
   background: linear-gradient(135deg, var(--pink), var(--pink-deep)); color: #fff;
-  font-size: 19px; padding: 16px 34px; box-shadow: 0 8px 24px rgba(232, 68, 111, 0.4);
-  max-width: 100%;
+  font-size: clamp(17px, 4.6vw, 19px); padding: 16px 30px;
+  box-shadow: 0 8px 24px rgba(232, 68, 111, 0.4);
+  max-width: 100%; white-space: nowrap;
 }
 #btn-yes:active { transform: scale(0.95); }
 #btn-no {
