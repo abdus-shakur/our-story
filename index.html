@@ -926,21 +926,33 @@ function logFlames(name1, name2, result, letterCount) {
   }
   if (!ANALYTICS.SUPABASE_URL || !ANALYTICS.SUPABASE_ANON_KEY) return;
   if (new URLSearchParams(location.search).has('preview')) return;
-  fetch(`${ANALYTICS.SUPABASE_URL}/rest/v1/${ANALYTICS.FLAMES_TABLE}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': ANALYTICS.SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${ANALYTICS.SUPABASE_ANON_KEY}`
-    },
-    body: JSON.stringify({
-      session_id: VISIT_SESSION,
-      name1, name2,
-      result,
-      result_word: (FLAMES_MEANING[result] || {}).word || null,
-      letter_count: letterCount
-    })
-  }).catch(() => {});
+
+  // Wait (briefly) for the visit row to exist so we can store its id
+  // as a real foreign key. If it never arrives, visit_id stays null
+  // and session_id still ties the rows together.
+  const waitForVisit = Promise.race([
+    window.__visitReady || Promise.resolve(null),
+    new Promise(res => setTimeout(() => res(null), 4000))
+  ]).catch(() => null);
+
+  waitForVisit.then(() => {
+    fetch(`${ANALYTICS.SUPABASE_URL}/rest/v1/${ANALYTICS.FLAMES_TABLE}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': ANALYTICS.SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${ANALYTICS.SUPABASE_ANON_KEY}`
+      },
+      body: JSON.stringify({
+        visit_id: window.__visitRowId || null,   // FK → page_visits.id
+        session_id: VISIT_SESSION,               // fallback if the visit insert failed
+        name1, name2,
+        result,
+        result_word: (FLAMES_MEANING[result] || {}).word || null,
+        letter_count: letterCount
+      })
+    }).catch(() => {});
+  });
 }
 
 (function trackVisit() {
@@ -995,8 +1007,10 @@ function logFlames(name1, name2, result, letterCount) {
 
   let rowId = null;
 
-  // 1) look up IP/geo (best effort), then 2) insert the row
-  fetch('https://ipapi.co/json/')
+  // 1) look up IP/geo (best effort), then 2) insert the row.
+  // The promise is exposed as window.__visitReady so the FLAMES box
+  // can wait for the visit id and store it as a real foreign key.
+  window.__visitReady = fetch('https://ipapi.co/json/')
     .then(r => r.ok ? r.json() : null)
     .catch(() => null)
     .then(geo => {
@@ -1014,7 +1028,10 @@ function logFlames(name1, name2, result, letterCount) {
       });
     })
     .then(r => r && r.ok ? r.json() : null)
-    .then(rows => { if (rows && rows[0]) rowId = rows[0].id; })
+    .then(rows => {
+      if (rows && rows[0]) rowId = window.__visitRowId = rows[0].id;
+      return rowId;
+    })
     .catch(() => {});
 
   // track scroll depth
